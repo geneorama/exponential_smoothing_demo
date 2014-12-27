@@ -15,11 +15,11 @@ shinyUI(fluidPage(
   # Sidebar with a slider input for number of bins
   sidebarLayout(
     sidebarPanel(
-    	textInput("caption", "Caption:", "special"),
+    	numericInput("randomseed", "Random Seed:", 101010),
     	sliderInput("mu", "Mean for rnorm:", value = 4, 
     							min = -50, max = 50),
     	sliderInput("sigma", "Sigma for rnorm:", value = sqrt(2), 
-    							min = 0, max = 50),
+    							min = 0, max = 15, step=.01),
     	sliderInput("root1", "First root:", value = 1.2, 
     							min = -5, max = 5, step=.025),
     	sliderInput("root2", "Second root:", value = -.4,
@@ -32,8 +32,6 @@ shinyUI(fluidPage(
 
     # Show a plot of the generated distribution
     mainPanel(
-    	# verbatimTextOutput("ar_data_str"), 
-    	textOutput("ar_data_str", container = span), 
     	h3(textOutput("caption", container = span)),
     	plotOutput("ts_plot"),
     	plotOutput("acf_plot")

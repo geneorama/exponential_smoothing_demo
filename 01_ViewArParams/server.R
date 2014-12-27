@@ -17,6 +17,8 @@ shinyServer(function(input, output) {
 	}
 	
 	ar_data <- reactive({
+		set.seed(input$randomseed)
+		
 		ret <- filter(rnorm(1000, 
 												mean = input$mu, 
 												sd = input$sigma), 
@@ -24,12 +26,6 @@ shinyServer(function(input, output) {
 									method = "recursive", 
 									init = c(input$start1, input$start2))
 		return(ret)
-	})
-	
-	output$ar_data_str <- renderText({
-		"TEXT ar_data_str"
-		 length(ar_data())
-		# str(ar_data())
 	})
 	
 	output$caption <- renderText({
@@ -41,8 +37,7 @@ shinyServer(function(input, output) {
 	})
 	
 	output$acf_plot <- renderPlot({
-		plot(2)
-		# acf(ar_data)
+		acf(ar_data())
 	})
 	
 })
