@@ -24,7 +24,7 @@ shinyServer(function(input, output) {
 		bump_duration <- min((1000-bump_start), bump_duration)
 		
 		
-		geneorama::set_project_dir("ExponentialSmoother")
+		geneorama::set_project_dir("exponential_smoothing_demo")
 		source("02_ExpSmoother/param1.R")
 		source("02_ExpSmoother/param2.R")
 		# bump_start <- 50
