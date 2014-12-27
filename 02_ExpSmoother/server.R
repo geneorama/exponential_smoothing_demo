@@ -65,15 +65,55 @@ shinyServer(function(input, output) {
 										rate = rate_of_decay)
 		my_dist_normalized <- my_dist / sum(my_dist)
 		
-		plot(ar_data(), xlab="t", ylab=expression(y[t]), pch=16, col='gray72')
-		lines(filter(ar_data(), my_dist_normalized), col="blue", lwd=2)
-		
-		##
+		## PLOT RAW DATA
+		plot(ar_data(), 
+				 xlab = "t", 
+				 ylab = expression(y[t]), 
+				 pch = 16, 
+				 col = 'gray72',
+				 ylim = range(c(0, ar_data())))
+		## PLOT ROLLING MEAN
+		lines(filter(ar_data(), 
+								 my_dist_normalized, 
+								 method = "convolution", 
+								 sides = 1), 
+					col="blue", 
+					lwd=2)
+		## CALCULATE ROLLING STANDARD STD DEV
+		part1 <- filter(ar_data()^2, 
+										my_dist_normalized, 
+										method = "convolution", 
+										sides = 1)
+		part2 <- filter(ar_data(), 
+										my_dist_normalized, 
+										method = "convolution", 
+										sides = 1)
+		N <- length(my_dist_normalized)
+		rolling_sd <- sqrt((part1 -part2 ^ 2 / N) / (N - 1))
+		lines(rolling_sd, 
+					col="red", 
+					lwd=2)
+		## 
 		# ar_data <- ts(c(seq1,seq2,seq3))
 		# plot(ar_data)
+		# filter(ar_data, my_dist_normalized, method = "convolution", sides = 1)
 		# smoothing_period <- 10
 		# rate_of_decay <- .1
 		# rm(ar_data, smoothing_period, rate_of_decay)
+		
+		## Manual sd check:
+		# sd(ar_data[1:10])
+		# sqrt((sum(ar_data[1:10]^2) - sum(ar_data[1:10])^2 / 10 ) / 9)
+		## Manual check using filter:
+		# filter(ar_data^2, my_dist_normalized, method = "convolution", sides = 1)
+		# 
+		# sqrt((filter(ar_data^2, rep(1,10), method = "convolution", sides = 1)[10] -
+		# filter(ar_data, rep(1,10), method = "convolution", sides = 1)[10] ^ 2 / 10) / 9)
+		# 
+		# sqrt((filter(ar_data^2, rep(1,10), method = "convolution", sides = 1) -
+		# 				filter(ar_data, rep(1,10), method = "convolution", sides = 1) ^ 2 / 10) / 9)
+		
+		
 	})
 	output$decay_pattern_plot <- renderPlot({
 		smoothing_period <- input$smoothing_period
