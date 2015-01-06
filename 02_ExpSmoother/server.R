@@ -10,9 +10,11 @@ library(shiny)
 
 shinyServer(function(input, output) {
 	if(FALSE){
-		input = list(mu=4, sigma=sqrt(2), 
-								 root1 = 1.2, root2=-.4,
-								 start1 = 7, start2 = 10)
+		## Make temp variables for manual debugging:
+		input = list(randomseed=101010, 
+								 bump_start = 400,
+								 bump_duration = 200, smoothing_period = 10, 
+								 rate_of_decay = .1)
 		rm(input)
 	}
 	
@@ -48,6 +50,8 @@ shinyServer(function(input, output) {
 									 filter = c(input1$root1, input1$root2), 
 									 method = "recursive", 
 									 init = c(seq2[bump_duration - 2], seq2[bump_duration - 1]))
+		## Run this line when debugging / executing code manually:
+		# ar_data <- function(){ts(c(seq1,seq2,seq3))}
 		return(ts(c(seq1,seq2,seq3)))
 	})
 	
@@ -56,11 +60,10 @@ shinyServer(function(input, output) {
 	})
 	
 	output$ts_plot <- renderPlot({
-		
-		
+		## Get inputs
 		smoothing_period <- input$smoothing_period
 		rate_of_decay <- input$rate_of_decay
-		
+		## Get exponential curve
 		my_dist <- dexp(x = seq(1:smoothing_period), 
 										rate = rate_of_decay)
 		my_dist_normalized <- my_dist / sum(my_dist)
