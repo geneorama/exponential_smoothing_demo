@@ -15,7 +15,6 @@ shinyServer(function(input, output) {
 								 bump_start = 400,
 								 bump_duration = 200, smoothing_period = 10, 
 								 rate_of_decay = .1)
-		rm(input)
 	}
 	
 	
@@ -29,8 +28,6 @@ shinyServer(function(input, output) {
 		geneorama::set_project_dir("exponential_smoothing_demo")
 		source("02_ExpSmoother/param1.R")
 		source("02_ExpSmoother/param2.R")
-		# bump_start <- 50
-		# bump_duration <- 500
 		
 		seq1 <- filter(rnorm(bump_start - 1, 
 												 mean = input1$mu, 
@@ -92,29 +89,31 @@ shinyServer(function(input, output) {
 										method = "convolution", 
 										sides = 1)
 		N <- length(my_dist_normalized)
-		rolling_sd <- sqrt((part1 -part2 ^ 2 / N) / (N - 1))
+		rolling_sd <- sqrt((part1 - part2 ^ 2 / N) / (N - 1))
 		lines(rolling_sd, 
 					col="red", 
 					lwd=2)
 		## 
-		# ar_data <- ts(c(seq1,seq2,seq3))
-		# plot(ar_data)
-		# filter(ar_data, my_dist_normalized, method = "convolution", sides = 1)
+		# ar_data <- function() {ts(c(seq1,seq2,seq3))}
+		# plot(ar_data())
+		# filter(ar_data(), my_dist_normalized, method = "convolution", sides = 1)
 		# smoothing_period <- 10
 		# rate_of_decay <- .1
-		# rm(ar_data, smoothing_period, rate_of_decay)
-		
+
 		## Manual sd check:
-		# sd(ar_data[1:10])
-		# sqrt((sum(ar_data[1:10]^2) - sum(ar_data[1:10])^2 / 10 ) / 9)
+		# sd(ar_data()[1:10])
+		# sqrt((sum(ar_data()[1:10]^2) - sum(ar_data()[1:10])^2 / 10 ) / 9)
+		
+		
+		
 		## Manual check using filter:
-		# filter(ar_data^2, my_dist_normalized, method = "convolution", sides = 1)
+		# filter(ar_data()^2, my_dist_normalized, method = "convolution", sides = 1)
 		# 
-		# sqrt((filter(ar_data^2, rep(1,10), method = "convolution", sides = 1)[10] -
-		# filter(ar_data, rep(1,10), method = "convolution", sides = 1)[10] ^ 2 / 10) / 9)
+		# sqrt((filter(ar_data()^2, rep(1,10), method = "convolution", sides = 1)[10] -
+		# filter(ar_data(), rep(1,10), method = "convolution", sides = 1)[10] ^ 2 / 10) / 9)
 		# 
-		# sqrt((filter(ar_data^2, rep(1,10), method = "convolution", sides = 1) -
-		# 				filter(ar_data, rep(1,10), method = "convolution", sides = 1) ^ 2 / 10) / 9)
+		# sqrt((filter(ar_data()^2, rep(1,10), method = "convolution", sides = 1) -
+		# 				filter(ar_data(), rep(1,10), method = "convolution", sides = 1) ^ 2 / 10) / 9)
 		
 		
 	})
