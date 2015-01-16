@@ -16,7 +16,7 @@ shinyUI(fluidPage(
   sidebarLayout(
     sidebarPanel(
     	numericInput("randomseed", "Random Seed:", 101010),
-    	sliderInput("bump_start", "Starting Time of Outage:", value = 400, 
+    	sliderInput("bump_start", "Starting Time of Increase:", value = 400, 
     							min = 0, max = 1000),
     	sliderInput("bump_duration", "Outage Duration:", value = 200, 
     							min = 0, max = 500, step=1),
