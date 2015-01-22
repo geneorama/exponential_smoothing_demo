@@ -1,0 +1,247 @@
+---
+title: Exponential Smoothing Example
+license: GPL (>= 2)
+tags: shiny example smoothing time-series
+mathjax: true
+summary: This is a demonstration of one way to perform exponential exponential smoothing on a time series.
+---
+
+<br>
+
+## Introduction and description
+
+This documentation describes a type of exponential smoothing that can be applied to time series data.  This smoothing methodology can be applied on a rolling basis.  It is designed to give more recent observations more weight than older observations.  This is accomplished through a weighting scheme where older observations are given less weight, and the weights are distributed according to pattern based on the exponetial distribution.  
+
+A motivating example is provided, as well as some background into the concept.
+
+### Calculating an exponentially weighted rolling mean
+
+The details of how to calculate an exponentially weighted rolling mean is presented below.  This is a fairly straightforward weighted mean, but the weights are determined using a modified exponential distribution.
+
+#### The Exponential Distribution, Truncated
+
+Normally the exponential distribution is defined as follows:
+
+$$
+f(x;\lambda) = \begin{cases}
+\lambda e^{-\lambda x} & x \ge 0, \\
+0 & x < 0.
+\end{cases}
+$$
+
+However, this distribution has an infinite tail, which quickly becomes small and insignificant. This proposed solution truncates the tail of the distribution and then normalizes the remaining weights to ensure they sum to one (effectively reallocating the tail back to the retained distribution).  The ability to select a finite number of smoothing periods makes it easoer to apply the distribution to past observations.
+
+The code used to generate the distribution is shown below:
+
+```{r}
+TruncExpDist <- function(n_smoothing_periods, 
+                         rate_of_decay){
+    ## Get exponential curve
+    my_dist <- dexp(x = seq(1:n_smoothing_periods), 
+                    rate = rate_of_decay)
+    my_dist_normalized <- my_dist / sum(my_dist)
+    return(my_dist_normalized)
+}
+```
+
+The defaults used in this example have a smoothing period of 10 and a decay rate of .10.  Using this formula these assumptions would result in the following:
+
+```{r, tidy=FALSE}
+TruncExpDist(n_smoothing_periods = 10, 
+             rate_of_decay = .1)
+```
+
+This method is used to generate weights that are applied to the previous trailing observations.  So at each time period $j$ observations $\{x_{j-1}, x_{j-2}, \dots , x_{j-n}\},$ where $m$ is the length of the smoothing period.  More generally:
+
+$$SmoothMean(x_j) = \frac{ \sum_{i=1}^n w_i x_{j-i} }{\sum_{i=1}^n w_i}$$
+
+As an example, the weights with a smoothing period of 10 and a decay rate of .10 would result in the following:
+
+```{r}
+Starting_Distribution <- dexp(1:10, rate = .1) 
+## Same as: 
+# Starting_Distribution <- .1 * exp(-1:10 * .1)
+Starting_Distribution
+```
+
+This sequence does not sum to 1; `sum(Starting_Distribution)` = `r sum(Starting_Distribution)`
+
+So we normalize it:
+```{r}
+Weights <- Starting_Distribution / sum(Starting_Distribution) 
+Weights
+```
+
+This is an example of the the truncated and normalized distribution used throughout this methodology.
+
+### Calculating Exponentially Weighted Standard deviation
+
+The standard deviation can be more revealing for certain applications, and can also be a useful measure.  However, the trivial weighting scheme above will now work as well for the standard deviation.
+
+The method of moments is important for implementing a weighting scheme and using it to filter a measure of variance.  However, this is not a standard measure, and this implementation is probably not a true "standard deviation".  However, with the right parameterization it may well be more useful / revealing than other available measures.
+
+The concept of the method of moments is crucial for implementing this measure.  Rather than apply the weighting scheme directly to the observations, the weights are appled to the sums which can be used to calculate the variance.
+
+#### Introduction to the Method of Moments for Calculating Std Deviation
+
+Usually one would calculate the standard deviation of a sample $X$ using this well known equation:
+
+$$stdev(x) = \sigma_x = \frac{1}{N} \sum_{x=i}^{N} (x_i - \bar{x})^2$$
+
+However, one can also calculate standard deviation using expected values with the method of moments.
+
+$$E[\sigma_X] = \sqrt{E[X^2] - (E\left[X\right])^2}$$
+
+This calculation becomes:
+
+$$\sigma_x = \sqrt{\frac{\sum_{x=i}^{N} x_i^2 - \frac{(\sum_{x=i}^{N} x_i)^2}{N} }{N-1}}$$
+
+An example of the method of moments calculation is shown below, along with the built in function for standard deviation and a manual calculation:
+
+```{r, results='hold'}
+x <- 1:10
+N <- length(x)
+sd(1:10)
+sqrt(sum((x-mean(x))^2)/(N-1))
+sqrt((sum((1:10)^2) - sum((1:10))^2 / N ) / (N-1))
+```
+
+The method of moments offers to significant advantages:
+
+1. It makes it possible to apply the proposed weighting scheme
+2. It is far more flexible and efficient when performing calculations in a mapreduce framework (or in a database).  Sums and Sum Squares can be calculated tallied along many different margins (dates, times, by department, by type of sensor, geography, etc.), and then these components can be flexibly recombined at will.  Using the conventional formula would require having all data in memory to perform similar calculations.
+
+## Exponential smoothing applied to standard deviation
+
+One could calculate the sum, and sum squared of a time series for all available time periods, but then apply exponentially distributed weights to that that time series on a rolling basis.
+
+Note that the weights are applied to the sums rather than the observations themselves.
+
+weights 1 to m $\{w_{1}, w_{2}, \dots , w_{m}\}$, as derived above using an truncated exponential distribution
+
+$n$ observations of x, $\{x_{1}, x_{2}, \dots , x_{n}\}$ where each x represents an observed value, or average observed values at a particular time period.
+
+$m$ is the length of the smoothing period selected
+
+This method proposes applying this formulation to smooth the previous m observations at each time j
+
+$$SmoothStdDev(x_j) = \sqrt{\frac{ \sum_{i=1}^m w_i x_{j-i}^2 - \frac{(\sum_{i=1}^m w_i x_{j-i})^2}{m}}{m-1}}$$
+
+## Example
+
+Assume a noisy, autoregressive time series y (shown below) that jumps to a new level, at an unknown time period.
+
+The smoothing methodology demonstrated here would be a useful measure to detect the change fairly quickly, without getting too many false positives.
+
+The rolling standard deviation is shown in red.
+
+```{r}
+## Make temp variables for manual debugging:
+input = list(randomseed=101010, 
+             bump_start = 400,
+             bump_duration = 200, smoothing_period = 10, 
+             rate_of_decay = .1)
+set.seed(input$randomseed)
+bump_start <- input$bump_start
+bump_duration <- input$bump_duration
+bump_duration <- min((1000-bump_start), bump_duration)
+
+input1 <- list(mu = 4,
+               sigma = 1.58,
+               root1 = 1.05,
+               root2 = -.275,
+               start1 = 25,
+               start2 = 10)
+input2 <- list(mu = 9,
+               sigma = 3.2,
+	           root1= .95,
+	           root2 = -.125,
+	           start1 = 25,
+	           start2 = 10)
+
+seq1 <- filter(rnorm(bump_start - 1, 
+                     mean = input1$mu, 
+                     sd = input1$sigma), 
+               filter = c(input1$root1, input1$root2), 
+               method = "recursive", 
+               init = c(input1$start1, input1$start2))
+seq2 <- filter(rnorm(bump_duration, 
+                     mean = input2$mu, 
+                     sd = input2$sigma), 
+               filter = c(input2$root1, input2$root2), 
+               method = "recursive", 
+               init = c(seq1[bump_start - 2], seq1[bump_start - 1]))
+seq3 <- filter(rnorm(1000 - (bump_start + bump_duration - 1), 
+                     mean = input1$mu, 
+                     sd = input1$sigma), 
+               filter = c(input1$root1, input1$root2), 
+               method = "recursive", 
+               init = c(seq2[bump_duration - 2], seq2[bump_duration - 1]))
+## Run this line when debugging / executing code manually:
+ar_data <- function(){ts(c(seq1,seq2,seq3))}
+
+## Get inputs
+smoothing_period <- input$smoothing_period
+rate_of_decay <- input$rate_of_decay
+## Get exponential curve
+my_dist <- dexp(x = seq(1:smoothing_period), 
+                rate = rate_of_decay)
+my_dist_normalized <- my_dist / sum(my_dist)
+
+## PLOT RAW DATA
+plot(ar_data(), 
+     xlab = "t", 
+     ylab = expression(y[t]), 
+     pch = 16, 
+     col = 'gray72',
+     ylim = range(c(0, ar_data())))
+## PLOT ROLLING MEAN
+rolling_mean <- filter(x = ar_data(), 
+             filter = my_dist_normalized, 
+             method = "convolution", 
+             sides = 1)
+lines(rolling_mean, 
+      col="blue", 
+      lwd=2)
+## CALCULATE ROLLING STANDARD STD DEV
+part1 <- filter(x = ar_data()^2, 
+                filter = my_dist_normalized, 
+                method = "convolution", 
+                sides = 1)
+part2 <- filter(x = ar_data(), 
+                filter = my_dist_normalized, 
+                method = "convolution", 
+                sides = 1)
+N <- length(my_dist_normalized)
+rolling_sd <- sqrt((part1 - part2 ^ 2 / N) / (N - 1))
+lines(rolling_sd, 
+      col="red", 
+      lwd=2)
+
+```
+
+
+References:
+Hogg, R.V. and Tanis, E.A. (1997)
+"Probability and Statistical Inference", fifth edition, New Jersey: Prentice Hall.
+
+http://en.wikipedia.org/wiki/Standard_deviation
+
+<br>
+<br>
+<br>
+
+## Example Data
+
+A table of outputs is shown below for checking implementation.
+
+```{r}
+tab <- data.table::data.table(ar_data = ar_data(),
+                              rolling_smooth_mean = rolling_mean,
+                              rolling_smooth_sd = rolling_sd)
+print(tab, 1000)
+
+
+```
+
+
